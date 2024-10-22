@@ -1,0 +1,2 @@
+import asyncio
+# тут бот

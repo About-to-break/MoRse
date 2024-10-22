@@ -1,5 +1,6 @@
-import time
 import random
+import asyncio
+from analyzer import Analyzer
 from selenium import webdriver  # Используем selenium
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
@@ -7,7 +8,7 @@ import configparser
 
 
 class Browser:
-    def __init__(self):
+    def __init__(self, analyzer: Analyzer):
         # Чтение конфигурации из файла paths.ini
         self.config = configparser.ConfigParser()
         self.config.read('paths.ini')
@@ -25,18 +26,19 @@ class Browser:
 
         # Переменная для хранения драйвера
         self.driver = None
-        # Storage of last html page
-        self.memo = None
+
+        # Переменная для хранения объекта анализатора
+        self.analyzer = analyzer
 
     def run_browser(self):
         # Запускаем браузер Firefox с geckodriver
-        print(f"Запуск браузера Firefox с geckodriver")
+        print(f"Running Firefox with geckodriver")
         self.driver = webdriver.Firefox(service=self.service, options=self.options)
-        print("Браузер запущен. Пожалуйста, зайдите на нужный сайт вручную.")
-        input("После того, как вы загрузили страницу, нажмите Enter для продолжения...")
+        print("Please open required URL")
+        input("Press Enter after done...")
         return True
 
-    def refresh(self):
+    async def refresh(self):
         try:
             while True:
                 # Генерируем случайное время ожидания от 3 до 15 минут
@@ -44,12 +46,13 @@ class Browser:
                 print(f">>> Waiting for {wait_time / 60:.2f} minutes to update the page...")
 
                 # Засыпаем на случайное время
-                time.sleep(wait_time)
-
+                await asyncio.sleep(wait_time)
                 # Обновляем страницу
                 print(">>> Updating the page...")
                 self.driver.refresh()
-                self._get_page_source()
+                web_page = self._get_page_source()
+                await self.analyzer.check(web_page)
+
         except KeyboardInterrupt:
             print('>>> Updating routine cancelled')
         finally:
@@ -59,13 +62,11 @@ class Browser:
     def _get_page_source(self):
         """Метод для получения HTML текущей страницы."""
         if self.driver:
-            self.memo= self.driver.page_source
+            web_page = self.driver.page_source
             print(">>> HTML has been snatched")
+
+            return web_page
         else:
-            print(">>> Couldn't get HTML due to existing drive issue")
+            print(">>> Couldn't get HTML due to existing driver issue")
 
-    #must be async
-    def _check_memo(self):
-        if self.memo is not(None):
-            pass
-
+            raise RuntimeError("Check geckodriver and retry")

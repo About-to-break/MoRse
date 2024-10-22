@@ -1,8 +1,18 @@
-from parser import Browser
+import asyncio
+from browser import Browser
+from analyzer import Analyzer
 
-browser = Browser()
-browser.run_browser()
-print("Откройте требуемую страницу, по завершении нажмите Enter")
+
+def singleton(class_):
+    instances = {}
+
+    def getinstance(*args, **kwargs):
+        if class_ not in instances:
+            instances[class_] = class_(*args, **kwargs)
+        return instances[class_]
+
+    return getinstance
+
 
 ART = """
 M       M   OOO    RRRRR    SSSS   EEEEE
@@ -11,7 +21,7 @@ M M   M M  O   O   RRRRR    SSSS   EEEE
 M  M M  M  O   O   R  R         S  E    
 M   M   M   OOO    R   R   SSSSS   EEEEE
 
-                V.0.0.1
+                V.0.0.2
 """
 
 MENU = """
@@ -24,42 +34,43 @@ rf - enable auto page refreshing
 
 """
 
+
+@singleton
 class MoRse:
 
     def __init__(self):
         self.browser = None
         self.page_locked = False
-        self.memo = None
+        self.analyzer = Analyzer()
 
     def _open_browser(self):
         self.page_locked = False
-        self.browser = Browser()
+        self.browser = Browser(self.analyzer)
         self.page_locked = self.browser.run_browser()
 
-    def _refresh_page(self):
-        if self.browser is not(None) and self.page_locked:
-            self.browser.refresh()
+    async def _refresh_page(self):
+        if self.browser is not None and self.page_locked:
+            await self.browser.refresh()
 
-
-
-
-    def run(self):
+    async def run(self):
         do_run = True
 
         print(ART)
         print(MENU)
 
         while do_run:
-            command = input('->')
+            command = asyncio.get_event_loop().run_in_executor(None, input, '->')
 
             if command == 'st':
                 self._open_browser()
-                break
             elif command == 'of':
                 do_run = False
-                break
+            elif command == 'rf':
+                await self._refresh_page()
             else:
                 print(f'Unknown command "{command}"')
 
 
-
+if __name__ == "__main__":
+    m = MoRse()
+    asyncio.run(m.run())
